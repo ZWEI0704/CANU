@@ -1,0 +1,65 @@
+VERSION ""
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: AC_ECU Gateway
+
+
+BO_ 768 frmDoorState: 1 AC_ECU
+ SG_ strDoorLeft : 4|4@1+ (1,0) [0|15] ""  Gateway
+ SG_ sigDoorRight : 0|4@1+ (1,0) [0|15] ""  Gateway
+
+BO_ 256 frmContextState: 2 Gateway
+ SG_ sigTunnel : 3|1@1+ (1,0) [0|0] ""  Gateway,AC_ECU
+ SG_ sigSign : 1|2@1+ (1,0) [0|0] ""  Gateway
+ SG_ sigFrontObjectDistance : 7|9@1+ (2,0) [0|1022] ""  Gateway
+ SG_ sigCAEmergencyStop : 0|1@1+ (1,0) [0|0] ""  Gateway
+
+BO_ 257 frmEnginStatus: 2 Gateway
+ SG_ sigEngineState : 1|7@1+ (1,0) [0|127] ""  Gateway
+ SG_ sigEngineSpeed : 8|8@1+ (1,0) [0|255] "km/h"  Gateway,AC_ECU
+ SG_ sigEngineRunning : 0|1@1+ (1,0) [0|0] ""  Gateway
+
+
+
+CM_ BU_ AC_ECU "도어 및 편의 장치를 제어 (주기메세지, 장치들의 상태) ";
+CM_ BU_ Gateway "지정된 메세지만 CAN1에서 2로 전달
+지정된 메세지만 CAN2에서 1로 전달";
+CM_ BO_ 256 "(0x100, 2bytes) : 강제정지(1bit), 터널진입여부(1bits), 신호(2bits), 전방사물과의거리(9bits, CF: raw x 2+0), 10ms";
+CM_ BO_ 257 "엔진상태메세지 (0x101, 2bytes) : 속도(8bits), 동작중(1bit), 상태코드(7bits), 20ms 주기";
+BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
+BA_DEF_  "BusType" STRING ;
+BA_DEF_DEF_  "MultiplexExtEnabled" "No";
+BA_DEF_DEF_  "BusType" "CAN";
+

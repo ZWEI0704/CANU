@@ -1,0 +1,26 @@
+/*@!Encoding:949*/
+includes
+{
+  
+}
+
+variables
+{
+    msTimer loopTimer;
+}
+
+on start
+{
+   setTimerCyclic(loopTimer, 10);
+}
+
+on timer loopTimer
+{
+   // sysvar -> signal -> output(msg)
+  message frmContextState sendMsg;  // 메세지 변수 정의
+  sendMsg.sigTunnel.phys = @sysvar::ContextState::Tunnel; // 시스템 변수 값을 가져와서 시그널서버의 시그널Tx 부분에  값 입력
+  sendMsg.sigSign.phys = @sysvar::ContextState::Sign;    
+  sendMsg.sigFrontObjectDistance.phys = @sysvar::ContextState::Distance;
+  sendMsg.sigCAEmergencyStop.phys = @sysvar::ContextState::Stop;
+  output(sendMsg); // 메세지 전송
+}

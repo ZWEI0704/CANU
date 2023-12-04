@@ -1,0 +1,22 @@
+/*@!Encoding:949*/
+includes
+{
+  
+}
+
+variables
+{
+  msTimer ms1Timer;
+}
+
+on start {
+  setTimerCyclic(ms1Timer, 1);
+}
+
+on timer ms1Timer
+{
+  // busload action 버튼이 활성화 되어 있으면 CANIG를 이용하여 메세지 전송
+  if(@sysvar::Simulation::ErrAction == 1) {
+    @sysvar::Simulation::SendCANIG = 0;
+  }
+}

@@ -1,0 +1,240 @@
+/*@!Encoding:949*/
+includes
+{
+  
+}
+
+variables
+{  
+  msTimer ms100Timer;   // 100ms 주기 타이머 (창문 step 연산)
+  msTimer ms500Timer;   // 500ms 주기 타이머 (방향 지시등 연산)
+  msTimer ms500Timer_State;  // 500ms 주기 타이머 (Drive State 연산)
+  int n_max_window_step = 15; // 윈도우 이미지 에니메이션 개수
+  int n_in_tunnel = 0;  // 터널 진입 시그널 수신 값 저장용
+  int n_pre_speed = 0;  // 가속 또는 감속 중 판단용 직전 속도값
+  int n_no_msg_loopcount; // 메세지가 한번도 들어오지 않은 경우 (500ms * 4회 : GW로 부터 2초간 메세지 없음 체크용 변수)
+}
+
+on start {
+  initialize(); // 초기화
+}
+
+void initialize() {
+  @sysvar::Car::WindowLeftStep = 0;   // 좌측창문 애니메이션 인덱스
+  @sysvar::Car::WindowRightStep = 0;  // 우측창문 애니메이션 인덱스
+  @sysvar::Car::WindowLeftUp = 0;     // 좌측창문 닫기 모드 여부 (0: 동작X, 1: 동작 O)
+  @sysvar::Car::WindowLeftDown = 0;   // 좌측창문 열기 모드 여부 (0: 동작X, 1: 동작 O)
+  @sysvar::Car::WindowRightUp = 0;    // 우측창문 닫기 모드 여부 (0: 동작X, 1: 동작 O)
+  @sysvar::Car::WindowRightDown = 0;  // 우측창문 열기 모드 여부 (0: 동작X, 1: 동작 O)
+  
+  @sysvar::Car::EngineRunningStep = 0;// 엔진 시동 여부 (0: 시동X, 1: 시동 O)
+  @sysvar::Car::TurnSignalStick = 1;  // 턴시그널 값 (0: 좌측시그널 상태, 1: OFF상태, 2: 우측시그널 상태)
+  
+  @sysvar::Car::GWerrState = 0;       // GW에서 2초간 아무메세지가 없는 경우 사용자에게 알리기 위한 알람변수
+  
+  setTimerCyclic(ms100Timer, 100);    // 시작 시 타이머 주기 설정
+  setTimerCyclic(ms500Timer, 500);    // 시작 시 타이머 주기 설정
+  setTimerCyclic(ms500Timer_State, 500);    // 시작 시 타이머 주기 설정
+}
+
+void controlDoorDone() {
+  // 창문이 동작이 완료 되었을 경우 호출될 초기화 함수
+  // (step >= 최대 스텝값, step == 0 일 경우)
+  @sysvar::Car::WindowLeftUp = 0;
+  @sysvar::Car::WindowLeftDown = 0;
+  @sysvar::Car::WindowRightUp = 0;
+  @sysvar::Car::WindowRightDown = 0;
+}
+
+void recvedFromGW() {
+  n_no_msg_loopcount = 0;
+}
+
+on message CAN2::frmContextState
+{
+  // Context 메세지 수신 이벤트
+  n_in_tunnel = this.sigTunnel.phys; // 터널 진입 여부 시그널
+  @sysvar::Car::FrontDistance = this.sigFrontObjectDistance.phys * -1; // 전방 물체와의 거리 (progress bar 표시 범위 -1000~0로 변환)
+  recvedFromGW();
+}
+
+
+on message CAN2::frmEnginStatus
+{
+  // Engine 메세지 수신 이벤트
+  if(this.sigEngineSpeed.phys > 100) {
+    // 속도가 100보다 큰 경우 화면에 속도가 빠르다고 글자 표시
+    setControlProperty("Car","speed_alarm","Text","속도가 빠릅니다.");
+  }
+  else {
+    // 위 케이스가 아닌경우 글자 표시
+    setControlProperty("Car","speed_alarm","Text","-");
+  }
+  
+  // 가속 중 / 감속 중 / 정지 상태 표시
+  // 직전 속도값을 비교하여 상태 표시
+  if(n_pre_speed < this.sigEngineSpeed.phys) {
+    // 직전 속도 < 현재속도
+    setControlProperty("Car","accState","Text","가속 중");  
+  }
+  else if(n_pre_speed > this.sigEngineSpeed.phys) {
+    // 직전 속도 > 현재속도
+    setControlProperty("Car","accState","Text","감속 중");  
+  }
+  else if(n_pre_speed == 0) {
+    // 직전 속도 == 0
+    setControlProperty("Car","accState","Text","정지");  
+  }
+  
+  // 직전속도 기록
+  n_pre_speed = this.sigEngineSpeed.phys;
+  
+  recvedFromGW();
+}
+
+on timer ms100Timer{
+  // 엔진 동작 중이면 엔진동작 에니메이션 표시
+  if($CAN2::Gateway::frmEnginStatus::sigEngineRunning == 1) {
+    @sysvar::Car::EngineRunningStep = (@sysvar::Car::EngineRunningStep + 1) % 17;
+  }
+  
+  // 창문 동작 함수 호출
+  windowFunc(sysvar::Car::WindowLeftUp, sysvar::Car::WindowLeftDown, sysvar::Car::WindowLeftStep);
+  windowFunc(sysvar::Car::WindowRightUp, sysvar::Car::WindowRightDown, sysvar::Car::WindowRightStep);
+  
+  if(@sysvar::Car::WindowLeftUp == 1 || @sysvar::Car::WindowLeftDown == 1
+      || @sysvar::Car::WindowRightUp == 1 || @sysvar::Car::WindowRightDown == 1
+      || n_in_tunnel == 1)
+  {
+    // 창문 동작 상태 일 경우 (동작과 관련된 변수들 중 하나라도 값이 1인 경우) 
+  }  
+  else {   
+    // 창문 동작 상태가 아닌 경우 (위 조건 외 모든 케이스)
+    controlDoorDone();
+  }
+}
+
+on timer ms500Timer{
+  // 턴시그널 표시
+  // 비상정지 상황일 경우 좌우 턴시그널 모두 반복 점멸
+  if($CAN2::Gateway::frmContextState::sigCAEmergencyStop == 1) {
+    @sysvar::Car::TurnSignalLeft = !@sysvar::Car::TurnSignalLeft;
+    @sysvar::Car::TurnSignalRight = @sysvar::Car::TurnSignalLeft;
+  }
+  else {
+    // 턴시그널 제어 상태에 따라 좌/우/OFF 모드에 맞추어 점멸 또는 점멸 끄기
+    switch(@sysvar::Car::TurnSignalStick) {
+      case 0: // LEFT
+        @sysvar::Car::TurnSignalLeft = !@sysvar::Car::TurnSignalLeft;
+        @sysvar::Car::TurnSignalRight = 0;
+        break;
+      case 1: // OFF    
+        if(@sysvar::Car::TurnSignalLeft != 0) {
+          @sysvar::Car::TurnSignalLeft = 0;
+        }
+        if(@sysvar::Car::TurnSignalRight != 0) {
+          @sysvar::Car::TurnSignalRight = 0;
+        }
+        break;
+      case 2: // RIGHT
+        @sysvar::Car::TurnSignalLeft = 0;
+        @sysvar::Car::TurnSignalRight = !@sysvar::Car::TurnSignalRight;
+        break;
+    }
+  }
+  n_no_msg_loopcount++;
+  
+  // can1 네트워크에 busload 100% 일 시 다른 메세지들이 우선순위에서 밀려서 데이터가 전송되지 못함
+  if(n_no_msg_loopcount > 4) {
+    @sysvar::Car::GWerrState = 1;
+  }
+  else {
+    @sysvar::Car::GWerrState = 0;
+  }
+}
+
+on timer ms500Timer_State
+{
+  if ( $sigTunnel )
+  {
+    if ( @sysvar::UIState::Drive_State == 3)
+    {
+      @sysvar::UIState::Drive_State = 4;
+    }
+    else
+    {
+      @sysvar::UIState::Drive_State = 3;
+    }
+  }
+  else
+  {
+    if ( @sysvar::UIState::Drive_State == 1)
+    {
+      @sysvar::UIState::Drive_State = 2;
+    }
+    else
+    {
+      @sysvar::UIState::Drive_State = 1;
+    }
+  }
+}
+
+
+void windowFunc(sysvarInt* _target_window_up, sysvarInt* _target_window_down, sysvarInt* _window_step) {
+  // 창문 제어 함수
+  // 시스템변수 심볼을 전달 받아 공통함수로 처리
+  int n_door_changed; // 창문이 한번이라도 상태변경이 이루어지면 write 로그를 표시하기 위한 동작 여부 확인용 변수
+  n_door_changed = 0; 
+  
+  if(@_target_window_up == 1 || n_in_tunnel == 1) {
+    if(@_window_step > 0) {
+      @_window_step--;
+      n_door_changed = 1;
+    }
+    else {
+      @_target_window_up = 0;
+    }
+  }
+  else if(@_target_window_down == 1) {
+    if(@_window_step < n_max_window_step - 1) {
+      @_window_step++;
+      n_door_changed = 1;
+    }
+    else {
+      @_target_window_down = 0;
+    }
+  }
+  if(n_door_changed == 1) {
+    write("controlling name: %s, value:%d", _window_step.name, @_window_step);
+  }
+}
+
+on sysvar sysvar::Car::WindowLeftUp
+{
+   // 1 pressed -> released 0
+   // up 누르면  창문을 닫음 (15->0)
+  doAction(sysvar::Car::WindowLeftUp);
+}
+on sysvar sysvar::Car::WindowLeftDown
+{
+   // 1 presesed -> released 0
+   // down 누르면  창문을 열기 (0->15)  
+  doAction(sysvar::Car::WindowLeftDown);
+}
+
+on sysvar sysvar::Car::WindowRightUp
+{
+   // 1 pressed -> released 0
+   // up 누르면  창문을 닫음 (15->0)
+  doAction(sysvar::Car::WindowRightUp);
+}
+on sysvar sysvar::Car::WindowRightDown
+{
+   // 1 presesed -> released 0
+   // down 누르면  창문을 열기 (0->15)  
+  doAction(sysvar::Car::WindowRightDown);
+}
+
+void doAction(sysvarInt * _action) {
+  write("control name: %s, value:%d", _action.name, @_action);
+}

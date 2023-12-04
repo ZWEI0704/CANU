@@ -1,0 +1,68 @@
+/*@!Encoding:949*/
+includes
+{
+  
+}
+
+variables
+{
+  msTimer calcLoop;               // 주기 타이머 5ms
+  double db_speed = 0.0;          // 현재속도 계산용 변수 (소수점 계산이 필요하여 double형 사용)
+  double db_speed_acc = 0.1;      // accel 누름 상태 시 속도 증가량
+  double db_speed_brk = 0.4;      // brake 누름 상태 시 속도 감소량
+  double db_speed_fullbrk = 0.8;  // 비상정지 상태 시 속도 감소량
+  double db_speed_nut = 0.01;     // 타력 주행 시 속도 감소량
+}
+
+on start 
+{
+  setTimerCyclic(calcLoop, 5);    // measurement 첫 시작 시 timer 초기화
+}
+
+on Timer calcLoop
+{ 
+  // 1. 뉴트럴 상태 시 감속
+  if(db_speed > 0) {
+    db_speed -= db_speed_nut;
+  }
+  // 2. 비상 정지 상태 시 감속
+  if($CAN1::CA_ECU::frmContextState::sigCAEmergencyStop == 1) {
+    if(db_speed > 0) {
+      db_speed -= db_speed_fullbrk;
+    }
+  }
+  else {
+    // 비상 정지 상태가 아닌 경우
+    // 3. 브레이킹 상태 시 감속
+    if(@sysvar::UIState::btnBrake == 1) {
+      if(db_speed > 0) {
+        db_speed -= db_speed_brk;
+      }
+    }
+    else { 
+      // 4. 엑셀링 상태 시 증속 (단, 엔진이 동작 중 [시동]인 상태여야함)
+      if(@sysvar::UIState::btnAccel == 1 && $CAN1::PT_ECU::frmEnginStatus::sigEngineRunning == 1) {
+        if(db_speed < 255) {
+          db_speed += db_speed_acc;
+        }
+        if(db_speed > CAN1::PT_ECU::frmEnginStatus::sigEngineSpeed.maximum) {
+          // DBC에 정의된 최대값보다 높으면 최대값으로 값 설정
+          db_speed = CAN1::PT_ECU::frmEnginStatus::sigEngineSpeed.maximum;
+          // DBC에 정의된 최대값보다 높으면 기본값으로 값 설정 예시
+          //db_speed = CAN1::PT_ECU::frmEnginStatus::sigEngineSpeed.DefaultValue;
+        }
+      }
+    }
+  }
+  
+  if(db_speed < 0) {
+    db_speed = 0;
+  }
+  if(db_speed > 255) {
+    db_speed = 255;
+  }
+  
+  // 시그널 서버에 계산된 속도값 입력 
+  // IL에서 메세지 보낼 때 시그널 서버 값(tx)을 가져감
+  $CAN1::PT_ECU::frmEnginStatus::sigEngineSpeed = db_speed;
+}

@@ -1,0 +1,42 @@
+/*@!Encoding:949*/
+includes
+{
+  
+}
+
+variables
+{
+  
+}
+
+on message CAN1::frmEnginStatus
+{
+  // CAN1 네트워크에서 frmEnginStatus (PT_ECU) 메세지를 수신하여 2번 채널로 동일한 메세지 내용으로 복사하여 전송
+  message * gwMsg;
+  gwMsg = this;
+  gwMsg.can = 2;
+  //
+  // 필요시 
+  // logic 이나 
+  // 다른 프로토콜 (lin message 등) 메세지로 변환 코드 작성
+  //
+  output(gwMsg);
+}
+
+on message CAN1::frmContextState
+{
+  // CAN1 네트워크에서 frmContextState (CA_ECU) 메세지를 수신하여 2번 채널로 동일한 메세지 내용으로 복사하여 전송
+  message * gwMsg;
+  gwMsg = this;
+  gwMsg.can = 2;
+  output(gwMsg);
+}
+
+on message CAN2::frmDoorState
+{
+  // CAN2 네트워크에서 frmDoorState (AC_ECU) 메세지를 수신하여 1번 채널로 동일한 메세지 내용으로 복사하여 전송
+  message * gwMsg;
+  gwMsg = this;
+  gwMsg.can = 1;
+  output(gwMsg);
+}
