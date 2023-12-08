@@ -1,0 +1,20 @@
+/*@!Encoding:949*/
+includes
+{
+  
+}
+
+variables
+{
+  
+}
+
+on sysvar sysvar::Window::isTunnel
+{
+  $CAN2::DT_ECU::frm_DT_Status::sig_DT_Tunnel = @Window::isTunnel;
+}
+
+on sysvar sysvar::Dashboard::AC_Now_Temp
+{
+  $CAN2::DT_ECU::frm_DT_Status::sig_DT_Now_Temp = @sysvar::Dashboard::AC_Now_Temp;
+}

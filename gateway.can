@@ -1,0 +1,35 @@
+/*@!Encoding:949*/
+includes
+{
+  
+}
+
+variables
+{
+  
+}
+
+on message CAN1::frm_CL_Context_State
+{
+  message * getMsg;
+  getMsg = this;
+  getMsg.can = 2;
+  output(getMsg);
+}
+
+on message CAN1::frm_Engine_Status
+{
+  message * getMsg;
+  getMsg = this;
+  getMsg.can = 2;
+  output(getMsg);
+}
+
+
+on message CAN2::frm_DT_Status
+{
+  message * getMsg;
+  getMsg = this;
+  getMsg.can = 1;
+  output(getMsg);
+}

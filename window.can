@@ -1,0 +1,64 @@
+/*@!Encoding:949*/
+includes
+{
+  
+}
+
+variables
+{
+  msTimer windowControl;
+  int closeFlag = 0;
+}
+
+on timer windowControl
+{
+  // Left Window
+  // Window Up(Close)
+  if ($sig_CL_FL_Window == 1)
+  {
+    if (@sysvar::Window::FL_Window_State < 11)
+      @sysvar::Window::FL_Window_State++;
+  }
+  
+  // Window Down(Open)
+  if ($sig_CL_FL_Window == 2)
+  {
+    if (@sysvar::Window::FL_Window_State > 0)
+      @sysvar::Window::FL_Window_State--;
+  }
+  
+  // Right Window
+  // Window Up(Close)
+  if ($sig_CL_FR_Window == 1)
+  {
+    if (@sysvar::Window::FR_Window_State < 11)
+      @sysvar::Window::FR_Window_State++;
+  }
+  
+  // Window Down(Open)
+  if ($sig_CL_FR_Window == 2)
+  {
+    if (@sysvar::Window::FR_Window_State > 0)
+      @sysvar::Window::FR_Window_State--;
+  }
+  
+  if ( (@sysvar::Window::FL_Window_State == 11 && @sysvar::Window::FR_Window_State == 11) ||
+       (!$sig_CL_FL_Window && !$sig_CL_FR_Window) )
+  {
+    @sysvar::Window::FL_Window_Control = 0;
+    @sysvar::Window::FR_Window_Control = 0;
+    cancelTimer(windowControl);
+  }
+}
+
+on message frm_CL_Context_State
+{
+  if ($sig_CL_FL_Window || $sig_CL_FR_Window)
+  {
+    setTimerCyclic(windowControl, 100);
+  }
+  else
+  {
+    cancelTimer(windowControl);
+  }
+}

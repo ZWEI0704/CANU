@@ -1,0 +1,118 @@
+/*@!Encoding:949*/
+includes
+{
+  
+}
+
+variables
+{
+  msTimer RPMControl;
+  msTimer startControl;
+  msTimer gif_Timer;
+  double db_rpm_acc;
+  double db_rpm_brk;
+  double cal_speed = 0;
+}
+
+on start
+{
+  setTimerCyclic(RPMControl, 10);
+}
+
+on sysvar sysvar::Engine::Driving_Start
+{
+  $sig_CL_Driving_Start = @Engine::Driving_Start;
+  if (@sysvar::Engine::Driving_Start)
+  {
+    setTimerCyclic(gif_Timer, 100);
+    setTimerCyclic(startControl, 10);
+  }
+  else
+  {
+    cancelTimer(gif_Timer);
+    setTimerCyclic(startControl, 10);
+  }
+}
+
+on timer gif_Timer
+{
+  if ($sig_CL_Driving_Start)
+    @sysvar::Engine::Engine_Pump += 1;
+  
+  if (@sysvar::Engine::Engine_Pump == 8)
+    @sysvar::Engine::Engine_Pump = 0;
+}
+
+on timer RPMControl
+{
+  if (@sysvar::Engine::Driving_Start)
+  {
+    if ($CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_Accel && @sysvar::Engine::EngineRPM < 8000)
+    {
+      @sysvar::Engine::EngineRPM += 6;
+    }
+    @sysvar::Engine::EngineRPM += 1;
+  }
+  
+  if (1050 < @sysvar::Engine::EngineRPM)
+  {
+    if ($CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_Break)
+    {
+      @sysvar::Engine::EngineRPM -= 15;
+    }
+    else
+    {
+      db_rpm_brk = @sysvar::Engine::EngineRPM / 1000;
+      if (@sysvar::Engine::EngineRPM < 2500)
+        db_rpm_brk += 2;
+      @sysvar::Engine::EngineRPM -= db_rpm_brk;
+    }
+  }
+  
+  @sysvar::Engine::Drive_distance += (cal_speed / 360000);
+  $CAN1::PT_ECU::frm_Engine_Status::sig_Engine_RPM = (int)@sysvar::Engine::EngineRPM;
+  cal_speed = 260 * (@sysvar::Engine::EngineRPM - 1100);
+  cal_speed /= 5900;
+  if (cal_speed < 0)
+  {
+    cal_speed = 0;
+  }
+  else if(cal_speed > 255)
+  {
+    cal_speed = 255;
+  }
+  @sysvar::Engine::Drive_Speed = (int) cal_speed;
+}
+
+on timer startControl
+{
+  if (@sysvar::Engine::Driving_Start && @sysvar::Engine::EngineRPM < 1100)
+  {
+    if (@sysvar::Engine::EngineRPM < 850)
+    {
+      db_rpm_acc = 5;
+    }
+    else
+    {
+      db_rpm_acc = 800 / @sysvar::Engine::EngineRPM;
+    }
+    @sysvar::Engine::EngineRPM += db_rpm_acc;
+    
+    if (1100 <= @sysvar::Engine::EngineRPM)
+      cancelTimer(startControl);
+  }
+  
+  if (!@Engine::Driving_Start && 0 < @sysvar::Engine::EngineRPM)
+  {
+    if (@sysvar::Engine::EngineRPM < 10)
+    {
+      @sysvar::Engine::EngineRPM = 0;
+      cancelTimer(startControl);
+    }
+    else
+    {
+      @sysvar::Engine::EngineRPM -= 4;
+    }
+  }
+}
+

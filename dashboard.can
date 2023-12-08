@@ -1,0 +1,57 @@
+/*@!Encoding:949*/
+includes
+{
+  
+}
+
+variables
+{
+  msTimer driveIconTimer;
+  int timerOn = 0;
+}
+
+void timerCheck(int input)
+{
+  if (timerOn != input)
+  {
+    timerOn = input;
+    
+    if (input)
+      setTimerCyclic(driveIconTimer, 300);
+    else
+    {
+      cancelTimer(driveIconTimer);
+      @sysvar::Engine::Drive_State = 0;
+    }
+  }
+}
+
+on timer driveIconTimer
+{
+  if ($sig_DT_Tunnel)
+  {
+    if (@sysvar::Engine::Drive_State == 3)
+      @sysvar::Engine::Drive_State = 4;
+    else
+      @sysvar::Engine::Drive_State = 3;
+  }
+  else
+  {
+    if (@sysvar::Engine::Drive_State == 1)
+      @sysvar::Engine::Drive_State = 2;
+    else
+      @sysvar::Engine::Drive_State = 1;
+  }
+}
+
+on message frm_Engine_Status
+{
+  if (1100 < $sig_Engine_RPM.phys)
+  {
+    timerCheck(1);
+  }
+  else
+  {
+    timerCheck(0);
+  }
+}

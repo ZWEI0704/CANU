@@ -95,7 +95,7 @@ on message CAN2::frmEnginStatus
 on timer ms100Timer{
   // 엔진 동작 중이면 엔진동작 에니메이션 표시
   if($CAN2::Gateway::frmEnginStatus::sigEngineRunning == 1) {
-    @sysvar::Car::EngineRunningStep = (@sysvar::Car::EngineRunningStep + 1) % 17;
+    @sysvar::Car::EngineRunningStep = (@sysvar::Car::EngineRunningStep + 1) % 8;
   }
   
   // 창문 동작 함수 호출

@@ -1,0 +1,219 @@
+/*@!Encoding:949*/
+includes
+{
+  
+}
+
+variables
+{
+  msTimer ms200Timer;
+  msTimer ms500Timer;
+  int temp_cnt = 0;
+  int save_recirculation = 0;
+}
+
+on start
+{
+  setTimerCyclic(ms200Timer, 200);
+  setTimerCyclic(ms500Timer, 500);
+}
+on timer ms200Timer
+{
+  if (@sysvar::Dashboard::AC_Temp_Control == 1 && @sysvar::Dashboard::AC_Target_Temp < 30)
+  {
+    @sysvar::Dashboard::AC_Target_Temp += 1;
+  }
+  else if (@sysvar::Dashboard::AC_Temp_Control == 2 && 18 < @sysvar::Dashboard::AC_Target_Temp)
+  {
+    @sysvar::Dashboard::AC_Target_Temp -= 1;
+  }
+  
+  if (@sysvar::Dashboard::AC_Power)
+  {
+    if (@sysvar::Dashboard::AC_Wind_Control)
+    {
+      @sysvar::Dashboard::AC_Mode = 0;
+    }
+    
+    if (@sysvar::Dashboard::AC_Wind_Control == 1 && @sysvar::Dashboard::AC_Wind_Power < 4)
+    {
+      @sysvar::Dashboard::AC_Wind_Power += 1;
+    }
+    else if (@sysvar::Dashboard::AC_Wind_Control == 2 && 1 < @sysvar::Dashboard::AC_Wind_Power)
+    {
+      @sysvar::Dashboard::AC_Wind_Power -= 1;
+    }
+  }
+}
+
+on timer ms500Timer
+{
+  switch(@sysvar::Dashboard::Turn_Signal_State)
+  {
+    case 0: // LEFT    
+      if($sig_CL_Left_Signal) {
+        $sig_CL_Left_Signal = 0;
+      }
+      else
+      {
+        $sig_CL_Left_Signal = 1;
+      }
+      $sig_CL_Right_Signal = 0;
+      break;
+    case 1: // OFF    
+      if($sig_CL_Left_Signal) {
+        $sig_CL_Left_Signal = 0;
+      }
+      if($sig_CL_Right_Signal) {
+        $sig_CL_Right_Signal = 0;
+      }
+      break;
+    case 2: // RIGHT
+      $sig_CL_Right_Signal = !$sig_CL_Right_Signal;
+      $sig_CL_Left_Signal = 0;
+      break;
+  }
+  
+  if (@sysvar::Dashboard::AC_Power)
+  {
+    if (@sysvar::Dashboard::AC_Mode)
+    {
+      if ( 4 <= abs(@sysvar::Dashboard::AC_Now_Temp - @sysvar::Dashboard::AC_Target_Temp) )
+        @sysvar::Dashboard::AC_Wind_Power = 4;
+      else if ( abs(@sysvar::Dashboard::AC_Now_Temp - @sysvar::Dashboard::AC_Target_Temp) < 1)
+        @sysvar::Dashboard::AC_Wind_Power = 1;
+      else
+        @sysvar::Dashboard::AC_Wind_Power = (int)abs(@sysvar::Dashboard::AC_Now_Temp - @sysvar::Dashboard::AC_Target_Temp);
+    }
+    
+    temp_cnt += @sysvar::Dashboard::AC_Wind_Power;
+    if (20 <= temp_cnt)
+    {
+      temp_cnt = 0;
+      if (@sysvar::Dashboard::AC_Target_Temp < @sysvar::Dashboard::AC_Now_Temp)
+      {
+        @sysvar::Dashboard::AC_Now_Temp -= 1;
+      }
+      else if (@sysvar::Dashboard::AC_Target_Temp > @sysvar::Dashboard::AC_Now_Temp)
+      {
+        @sysvar::Dashboard::AC_Now_Temp += 1;
+      }
+    }
+  }
+}
+
+on message CAN1::frm_DT_Status
+{
+  if ($CAN1::Gateway_ECU::frm_DT_Status::sig_DT_Tunnel &&
+      (0 < @sysvar::Window::FL_Window_State ||
+       0 < @sysvar::Window::FR_Window_State))
+  {
+    @sysvar::Window::FL_Window_Control = 1;
+    @sysvar::Window::FR_Window_Control = 1;
+  }
+}
+
+void checkSittingBelt()
+{
+  if (@sysvar::Dashboard::isSitting && !@sysvar::Dashboard::SeatBelt)
+    @sysvar::Dashboard::BeltIcon = 1;
+  else
+    @sysvar::Dashboard::BeltIcon = 0;
+}
+
+on sysvar sysvar::Window::FL_Window_Control
+{
+  $CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_FL_Window = @sysvar::Window::FL_Window_Control;
+}
+
+on sysvar sysvar::Window::FR_Window_Control
+{
+  $CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_FR_Window = @sysvar::Window::FR_Window_Control;
+}
+
+on sysvar sysvar::Dashboard::isSitting
+{
+  checkSittingBelt();
+  $sig_CL_Sitted = @Dashboard::isSitting;
+}
+
+on sysvar sysvar::Dashboard::SeatBelt
+{
+  checkSittingBelt();
+  $sig_CL_SeatBelt = @Dashboard::SeatBelt;
+}
+
+on sysvar sysvar::Dashboard::AC_Power
+{
+  if (@sysvar::Dashboard::AC_Power)
+  {
+    if (@sysvar::Dashboard::AC_Mode)
+      $CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_AC_Mode = 1;
+    else
+    {
+      $CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_AC_Mode = 2;
+      @sysvar::Dashboard::AC_Wind_Power = 4;
+    }
+  }
+  else
+  {
+    @sysvar::Dashboard::AC_Wind_Power = 0;
+    @sysvar::Dashboard::AC_Mode = 0;
+    $CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_AC_Mode = 0;
+  }
+}
+
+on sysvar sysvar::Dashboard::AC_Mode
+{
+  if (!@sysvar::Dashboard::AC_Power && !@sysvar::Dashboard::AC_OFF_Button)
+  {
+    @sysvar::Dashboard::AC_Power = 1;
+  }
+  
+  if (@sysvar::Dashboard::AC_Mode)
+      $CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_AC_Mode = 1;
+    else
+      $CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_AC_Mode = 2;
+}
+
+on sysvar sysvar::Dashboard::AC_Target_Temp
+{
+  $CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_AC_Temp = @sysvar::Dashboard::AC_Target_Temp;
+}
+
+on sysvar sysvar::Dashboard::AC_Wind_Power
+{
+  $CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_AC_Wind_Power = @sysvar::Dashboard::AC_Wind_Power;
+}
+
+on sysvar sysvar::Window::isTunnel
+{
+  if (@sysvar::Window::isTunnel)
+    @sysvar::Dashboard::Recirculation = 1;
+  else
+    @sysvar::Dashboard::Recirculation = save_recirculation;
+}
+
+on sysvar sysvar::Dashboard::Recirculation
+{
+  if (!@sysvar::Window::isTunnel)
+    save_recirculation = @sysvar::Dashboard::Recirculation;
+  
+  $CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_Recirculation = @sysvar::Dashboard::Recirculation;
+}
+
+on sysvar sysvar::Dashboard::AC_ON_Button
+{
+  if (@sysvar::Dashboard::AC_ON_Button)
+  {
+    @sysvar::Dashboard::AC_Power = 1;
+  }
+}
+
+on sysvar sysvar::Dashboard::AC_OFF_Button
+{
+  if (@sysvar::Dashboard::AC_OFF_Button)
+  {
+    @sysvar::Dashboard::AC_Power = 0;
+  }
+}
