@@ -37,8 +37,8 @@ BU_: Gateway_ECU Window_ECU AC_ECU Dashboard_ECU DT_ECU
 
 
 BO_ 514 frm_Window_Status: 1 Window_ECU
- SG_ sig_FR_Window_Status : 4|4@1+ (1,0) [0|15] ""  Gateway_ECU
- SG_ sig_FL_Window_Status : 0|4@1+ (1,0) [0|15] ""  Gateway_ECU
+ SG_ sig_FR_Window_Status : 4|4@1+ (1,0) [0|11] ""  Gateway_ECU
+ SG_ sig_FL_Window_Status : 0|4@1+ (1,0) [0|11] ""  Gateway_ECU
 
 BO_ 512 frm_CL_Context_State: 3 Gateway_ECU
  SG_ sig_CL_Break : 9|1@1+ (1,0) [0|1] "" Vector__XXX

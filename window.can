@@ -42,6 +42,9 @@ on timer windowControl
       @sysvar::Window::FR_Window_State--;
   }
   
+  $sig_FL_Window_Status = @sysvar::Window::FL_Window_State;
+  $sig_FR_Window_Status = @sysvar::Window::FR_Window_State;
+  
   if ( (@sysvar::Window::FL_Window_State == 11 && @sysvar::Window::FR_Window_State == 11) ||
        (!$sig_CL_FL_Window && !$sig_CL_FR_Window) )
   {

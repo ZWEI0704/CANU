@@ -16,7 +16,7 @@ variables
 
 on start
 {
-  setTimerCyclic(RPMControl, 10);
+  setTimerCyclic(RPMControl, 100);
 }
 
 on sysvar sysvar::Engine::Driving_Start
@@ -25,12 +25,12 @@ on sysvar sysvar::Engine::Driving_Start
   if (@sysvar::Engine::Driving_Start)
   {
     setTimerCyclic(gif_Timer, 100);
-    setTimerCyclic(startControl, 10);
+    setTimerCyclic(startControl, 100);
   }
   else
   {
     cancelTimer(gif_Timer);
-    setTimerCyclic(startControl, 10);
+    setTimerCyclic(startControl, 100);
   }
 }
 
@@ -49,27 +49,27 @@ on timer RPMControl
   {
     if ($CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_Accel && @sysvar::Engine::EngineRPM < 8000)
     {
-      @sysvar::Engine::EngineRPM += 6;
+      @sysvar::Engine::EngineRPM += 60;
     }
-    @sysvar::Engine::EngineRPM += 1;
+    @sysvar::Engine::EngineRPM += 10;
   }
   
   if (1050 < @sysvar::Engine::EngineRPM)
   {
     if ($CAN1::Cluster_ECU::frm_CL_Context_State::sig_CL_Break)
     {
-      @sysvar::Engine::EngineRPM -= 15;
+      @sysvar::Engine::EngineRPM -= 150;
     }
     else
     {
-      db_rpm_brk = @sysvar::Engine::EngineRPM / 1000;
+      db_rpm_brk = @sysvar::Engine::EngineRPM / 100;
       if (@sysvar::Engine::EngineRPM < 2500)
-        db_rpm_brk += 2;
+        db_rpm_brk += 20;
       @sysvar::Engine::EngineRPM -= db_rpm_brk;
     }
   }
   
-  @sysvar::Engine::Drive_distance += (cal_speed / 360000);
+  @sysvar::Engine::Drive_distance += (cal_speed / 36000);
   $CAN1::PT_ECU::frm_Engine_Status::sig_Engine_RPM = (int)@sysvar::Engine::EngineRPM;
   cal_speed = 260 * (@sysvar::Engine::EngineRPM - 1100);
   cal_speed /= 5900;
@@ -90,7 +90,7 @@ on timer startControl
   {
     if (@sysvar::Engine::EngineRPM < 850)
     {
-      db_rpm_acc = 5;
+      db_rpm_acc = 50;
     }
     else
     {
@@ -111,7 +111,10 @@ on timer startControl
     }
     else
     {
-      @sysvar::Engine::EngineRPM -= 4;
+      if (40 < @sysvar::Engine::EngineRPM)
+        @sysvar::Engine::EngineRPM -= 40;
+      else
+        @sysvar::Engine::EngineRPM = 0;
     }
   }
 }
