@@ -35,7 +35,7 @@
 
 ## Panel
 - ### Panel Image
-<img src="Docs/Total Panel.png" width="768" height="416"/>  
+  <img src="Docs/Total Panel.png" width="768" height="416"/>  
 
 - ### Panel Information
   - #### Panel Info 1
